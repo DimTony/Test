@@ -1,6 +1,7 @@
 "use client";
 import { Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Toaster } from "sonner";
 
 export default function MobileOnly({ children }: { children: any }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -35,6 +36,8 @@ export default function MobileOnly({ children }: { children: any }) {
           </div>
         </div>
       </div>
+
+      <Toaster position="top-center" />
     </>
   );
 }

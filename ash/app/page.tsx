@@ -55,8 +55,7 @@ export default function Home() {
         <div className="flex gap-4">
           <a
             className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
+            href="/terms-and-conditions"
             rel="noopener noreferrer"
           >
             <Image
@@ -66,12 +65,12 @@ export default function Home() {
               width={16}
               height={16}
             />
-            Terms
+            Terms & Conditions
           </a>
           <a
             className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
+            href="/privacy"
+            // target="_blank"
             rel="noopener noreferrer"
           >
             <Image
@@ -81,25 +80,25 @@ export default function Home() {
               width={16}
               height={16}
             />
-            Conditions
+            Privacy
           </a>
         </div>
 
-        <a
+        {/* <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"
           href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
           target="_blank"
           rel="noopener noreferrer"
         >
-          {/* <Image
+          <Image
             aria-hidden
             src="/globe.svg"
             alt="Globe icon"
             width={16}
             height={16}
-          /> */}
+          />
           Why choose Savy →
-        </a>
+        </a> */}
       </footer>
     </div>
   );
