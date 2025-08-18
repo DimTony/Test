@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
       api_secret: !!process.env.CLOUDINARY_API_SECRET,
     });
 
-     try {
-       await cloudinary.api.ping();
-       console.log("Cloudinary connection successful");
-     } catch (cloudinaryError) {
-       console.error("Cloudinary connection failed:", cloudinaryError);
-       throw new Error("Cloudinary service unavailable");
-     }
+    try {
+      await cloudinary.api.ping();
+      console.log("Cloudinary connection successful");
+    } catch (cloudinaryError) {
+      console.error("Cloudinary connection failed:", cloudinaryError);
+      throw new Error("Cloudinary service unavailable");
+    }
 
     const formData = await request.formData();
     console.log("FormData entries:", Array.from(formData.entries()));
@@ -63,78 +63,78 @@ export async function POST(request: NextRequest) {
 
     console.log("Starting image uploads...");
     // Upload both images to Cloudinary
-for (const [index, image] of [image1, image2].entries()) {
-  console.log(`Processing image ${index + 1}...`);
+    for (const [index, image] of [image1, image2].entries()) {
+      console.log(`Processing image ${index + 1}...`);
 
-  try {
-    // Check file size (Cloudinary free tier has 10MB limit)
-    if (image.size > 10 * 1024 * 1024) {
-      throw new Error(
-        `Image ${index + 1} is too large (${Math.round(
-          image.size / 1024 / 1024
-        )}MB). Maximum 10MB allowed.`
-      );
+      try {
+        // Check file size (Cloudinary free tier has 10MB limit)
+        if (image.size > 10 * 1024 * 1024) {
+          throw new Error(
+            `Image ${index + 1} is too large (${Math.round(
+              image.size / 1024 / 1024
+            )}MB). Maximum 10MB allowed.`
+          );
+        }
+
+        const bytes = await image.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        const base64String = buffer.toString("base64");
+        const dataUri = `data:${image.type};base64,${base64String}`;
+
+        console.log(
+          `Uploading image ${index + 1} (${Math.round(image.size / 1024)}KB)...`
+        );
+
+        const uploadResult = await cloudinary.uploader.upload(dataUri, {
+          folder: "user-status-checks",
+          resource_type: "image",
+          public_id: `status-${Date.now()}-${index + 1}-${Math.round(
+            Math.random() * 1e9
+          )}`,
+          transformation: [
+            { width: 800, height: 600, crop: "limit" },
+            { quality: "auto:good" },
+          ],
+          // Add timeout and retry options
+          timeout: 60000,
+        });
+
+        console.log(
+          `Image ${index + 1} uploaded successfully:`,
+          uploadResult.public_id
+        );
+
+        imageUrls.push(uploadResult.secure_url);
+        imagePublicIds.push(uploadResult.public_id);
+      } catch (uploadError: any) {
+        console.error(`Image ${index + 1} upload failed:`, {
+          message: uploadError.message,
+          http_code: uploadError.http_code,
+          error: uploadError,
+        });
+
+        // Provide more specific error messages
+        if (uploadError.http_code === 500) {
+          throw new Error(
+            `Cloudinary server error while uploading image ${
+              index + 1
+            }. Please try again.`
+          );
+        } else if (uploadError.message?.includes("File size too large")) {
+          throw new Error(
+            `Image ${
+              index + 1
+            } is too large. Please use an image smaller than 10MB.`
+          );
+        } else {
+          throw new Error(
+            `Failed to upload image ${index + 1}: ${
+              uploadError.message || "Unknown error"
+            }`
+          );
+        }
+      }
     }
-
-    const bytes = await image.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64String = buffer.toString("base64");
-    const dataUri = `data:${image.type};base64,${base64String}`;
-
-    console.log(
-      `Uploading image ${index + 1} (${Math.round(image.size / 1024)}KB)...`
-    );
-
-    const uploadResult = await cloudinary.uploader.upload(dataUri, {
-      folder: "user-status-checks",
-      resource_type: "image",
-      public_id: `status-${Date.now()}-${index + 1}-${Math.round(
-        Math.random() * 1e9
-      )}`,
-      transformation: [
-        { width: 800, height: 600, crop: "limit" },
-        { quality: "auto:good" },
-      ],
-      // Add timeout and retry options
-      timeout: 60000,
-    });
-
-    console.log(
-      `Image ${index + 1} uploaded successfully:`,
-      uploadResult.public_id
-    );
-
-    imageUrls.push(uploadResult.secure_url);
-    imagePublicIds.push(uploadResult.public_id);
-  } catch (uploadError: any) {
-    console.error(`Image ${index + 1} upload failed:`, {
-      message: uploadError.message,
-      http_code: uploadError.http_code,
-      error: uploadError,
-    });
-
-    // Provide more specific error messages
-    if (uploadError.http_code === 500) {
-      throw new Error(
-        `Cloudinary server error while uploading image ${
-          index + 1
-        }. Please try again.`
-      );
-    } else if (uploadError.message?.includes("File size too large")) {
-      throw new Error(
-        `Image ${
-          index + 1
-        } is too large. Please use an image smaller than 10MB.`
-      );
-    } else {
-      throw new Error(
-        `Failed to upload image ${index + 1}: ${
-          uploadError.message || "Unknown error"
-        }`
-      );
-    }
-  }
-}
 
     console.log("Generating unique phone number...");
     // Generate unique phone number with slug for new entry
@@ -153,7 +153,36 @@ for (const [index, image] of [image1, image2].entries()) {
     });
     console.log("Status check entry created");
 
-    // Rest of your code...
+    // Determine status to return (always based on original phone number)
+    let userStatus = "unencrypted"; // Default status for new users
+    let userId = statusCheckEntry._id;
+
+    if (existingUser) {
+      userStatus = existingUser.status;
+      userId = existingUser._id; // Use original user's ID for status
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        userId: userId,
+        status: userStatus,
+        isExistingUser: !!existingUser,
+        statusCheckId: statusCheckEntry._id,
+        originalPhoneNumber: phoneNumber,
+        savedPhoneNumber: uniquePhoneNumber,
+        message: existingUser
+          ? `Status for existing user: ${userStatus}`
+          : "New user created with pending status",
+        statusDetails:
+          {
+            pending: "Your application is under review",
+            encrypted: "Your verification has been encrypted",
+            unencrypted: "Your verification was unencrypted",
+          }[userStatus as "pending" | "encrypted" | "unencrypted"] ||
+          "Status unknown",
+      },
+    });
   } catch (error: any) {
     console.error("=== DETAILED ERROR ===");
     console.error("Error message:", error.message);
@@ -248,36 +277,36 @@ for (const [index, image] of [image1, image2].entries()) {
 //       imagePublicIds,
 //     });
 
-//     // Determine status to return (always based on original phone number)
-//     let userStatus = "unencrypted"; // Default status for new users
-//     let userId = statusCheckEntry._id;
+    // // Determine status to return (always based on original phone number)
+    // let userStatus = "unencrypted"; // Default status for new users
+    // let userId = statusCheckEntry._id;
 
-//     if (existingUser) {
-//       userStatus = existingUser.status;
-//       userId = existingUser._id; // Use original user's ID for status
-//     }
+    // if (existingUser) {
+    //   userStatus = existingUser.status;
+    //   userId = existingUser._id; // Use original user's ID for status
+    // }
 
-//     return NextResponse.json({
-//       success: true,
-//       data: {
-//         userId: userId,
-//         status: userStatus,
-//         isExistingUser: !!existingUser,
-//         statusCheckId: statusCheckEntry._id,
-//         originalPhoneNumber: phoneNumber,
-//         savedPhoneNumber: uniquePhoneNumber,
-//         message: existingUser
-//           ? `Status for existing user: ${userStatus}`
-//           : "New user created with pending status",
-//         statusDetails:
-//           {
-//             pending: "Your application is under review",
-//             encrypted: "Your verification has been encrypted",
-//             unencrypted: "Your verification was unencrypted",
-//           }[userStatus as "pending" | "encrypted" | "unencrypted"] ||
-//           "Status unknown",
-//       },
-//     });
+    // return NextResponse.json({
+    //   success: true,
+    //   data: {
+    //     userId: userId,
+    //     status: userStatus,
+    //     isExistingUser: !!existingUser,
+    //     statusCheckId: statusCheckEntry._id,
+    //     originalPhoneNumber: phoneNumber,
+    //     savedPhoneNumber: uniquePhoneNumber,
+    //     message: existingUser
+    //       ? `Status for existing user: ${userStatus}`
+    //       : "New user created with pending status",
+    //     statusDetails:
+    //       {
+    //         pending: "Your application is under review",
+    //         encrypted: "Your verification has been encrypted",
+    //         unencrypted: "Your verification was unencrypted",
+    //       }[userStatus as "pending" | "encrypted" | "unencrypted"] ||
+    //       "Status unknown",
+    //   },
+    // });
 //   } catch (error: any) {
 //     console.error("Status check error:", error);
 //     return NextResponse.json(
