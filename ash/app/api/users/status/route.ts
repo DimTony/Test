@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         );
 
         const uploadResult = await cloudinary.uploader.upload(dataUri, {
-          folder: "user-status-checks",
+          folder: "ash-status-checks",
           resource_type: "image",
           public_id: `status-${Date.now()}-${index + 1}-${Math.round(
             Math.random() * 1e9

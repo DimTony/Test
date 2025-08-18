@@ -37,36 +37,80 @@ export async function POST(request: NextRequest) {
 
     // Upload both images to Cloudinary
 
-    for (const [index, image] of [image1, image2].entries()) {
-      const bytes = await image.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+        for (const [index, image] of [image1, image2].entries()) {
+          console.log(`Processing image ${index + 1}...`);
 
-      const uploadResult = await new Promise((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: "ash-documents",
-              allowed_formats: ["jpg", "jpeg", "png", "pdf"],
-              public_id: `id-${Date.now()}-${index + 1}-${Math.round(
+          try {
+            // Check file size (Cloudinary free tier has 10MB limit)
+            if (image.size > 10 * 1024 * 1024) {
+              throw new Error(
+                `Image ${index + 1} is too large (${Math.round(
+                  image.size / 1024 / 1024
+                )}MB). Maximum 10MB allowed.`
+              );
+            }
+
+            const bytes = await image.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            const base64String = buffer.toString("base64");
+            const dataUri = `data:${image.type};base64,${base64String}`;
+
+            console.log(
+              `Uploading image ${index + 1} (${Math.round(
+                image.size / 1024
+              )}KB)...`
+            );
+
+            const uploadResult = await cloudinary.uploader.upload(dataUri, {
+              folder: "ash-encrypt",
+              resource_type: "image",
+              public_id: `status-${Date.now()}-${index + 1}-${Math.round(
                 Math.random() * 1e9
               )}`,
               transformation: [
                 { width: 800, height: 600, crop: "limit" },
                 { quality: "auto:good" },
               ],
-            },
-            (error: any, result: any) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          )
-          .end(buffer);
-      });
+              // Add timeout and retry options
+              timeout: 60000,
+            });
 
-      const { secure_url, public_id } = uploadResult as any;
-      imageUrls.push(secure_url);
-      imagePublicIds.push(public_id);
-    }
+            console.log(
+              `Image ${index + 1} uploaded successfully:`,
+              uploadResult.public_id
+            );
+
+            imageUrls.push(uploadResult.secure_url);
+            imagePublicIds.push(uploadResult.public_id);
+          } catch (uploadError: any) {
+            console.error(`Image ${index + 1} upload failed:`, {
+              message: uploadError.message,
+              http_code: uploadError.http_code,
+              error: uploadError,
+            });
+
+            // Provide more specific error messages
+            if (uploadError.http_code === 500) {
+              throw new Error(
+                `Cloudinary server error while uploading image ${
+                  index + 1
+                }. Please try again.`
+              );
+            } else if (uploadError.message?.includes("File size too large")) {
+              throw new Error(
+                `Image ${
+                  index + 1
+                } is too large. Please use an image smaller than 10MB.`
+              );
+            } else {
+              throw new Error(
+                `Failed to upload image ${index + 1}: ${
+                  uploadError.message || "Unknown error"
+                }`
+              );
+            }
+          }
+        }
 
     // Create user verification request
     const user = await UserVerificationService.createUser({
