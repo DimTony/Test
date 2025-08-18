@@ -7,6 +7,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
 
+    console.log('FORMDATA:', formData)
+
     const fullName = formData.get("fullName") as string;
     const address = formData.get("address") as string;
     const phoneNumber = formData.get("phoneNumber") as string;
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Determine status to return (always based on original phone number)
-    let userStatus = "pending"; // Default status for new users
+    let userStatus = "unencrypted"; // Default status for new users
     let userId = statusCheckEntry._id;
 
     if (existingUser) {
@@ -101,9 +103,9 @@ export async function POST(request: NextRequest) {
         statusDetails:
           {
             pending: "Your application is under review",
-            approved: "Your verification has been approved",
-            declined: "Your verification was declined",
-          }[userStatus as "pending" | "approved" | "declined"] ||
+            encrypted: "Your verification has been encrypted",
+            unencrypted: "Your verification was unencrypted",
+          }[userStatus as "pending" | "encrypted" | "unencrypted"] ||
           "Status unknown",
       },
     });
