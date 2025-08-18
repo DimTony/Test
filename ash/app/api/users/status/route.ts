@@ -14,6 +14,14 @@ export async function POST(request: NextRequest) {
       api_secret: !!process.env.CLOUDINARY_API_SECRET,
     });
 
+     try {
+       await cloudinary.api.ping();
+       console.log("Cloudinary connection successful");
+     } catch (cloudinaryError) {
+       console.error("Cloudinary connection failed:", cloudinaryError);
+       throw new Error("Cloudinary service unavailable");
+     }
+
     const formData = await request.formData();
     console.log("FormData entries:", Array.from(formData.entries()));
 
